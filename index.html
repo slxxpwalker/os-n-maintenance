@@ -59,7 +59,7 @@ fetch('digital_business_exam_full.json?v=' + Date.now(), {cache:'no-store'})
   .then(function(j){ data=j; titleEl.textContent = data.title || 'แบบทดสอบ'; $('#start').disabled=false; })
   .catch(function(err){
     titleEl.textContent = 'โหลดอัตโนมัติไม่สำเร็จ'; console.error(err);
-    var msg=document.createElement('div'); msg.className='muted'; msg.textContent='ตรวจสอบว่าไฟล์ digital_business_exam_full.json อยู่โฟลเดอร์เดียวกับ index.html และสะกดชื่อตรงกัน';
+    var msg=document.createElement('div'); msg.className='muted'; msg.textContent='ตรวจสอบว่าไฟล์ computer_systems_exam_59.json อยู่โฟลเดอร์เดียวกับ index.html และสะกดชื่อตรงกัน';
     play.appendChild(msg);
   });
 
