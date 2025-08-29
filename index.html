@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ExamSimple — GitHub Pages (Auto JSON)</title>
+<style>
+  :root{--bg:#0b0f14;--card:#121821;--ink:#e7edf5;--line:#243246;--ok:#22c55e;--bad:#ef4444}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,-apple-system}
+  .wrap{max-width:760px;margin:24px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid #1c2533;border-radius:16px;box-shadow:0 8px 28px #0005}
+  header{padding:14px 16px;border-bottom:1px solid #1c2533;display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .title{font-size:18px;font-weight:700}
+  .body{padding:16px}
+  .btn{appearance:none;border:1px solid var(--line);background:#1a2533;color:var(--ink);padding:10px 14px;border-radius:12px;cursor:pointer}
+  .btn.primary{background:#4da3ff;color:#081018;border-color:#7ab9ff;font-weight:800}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .q{font-size:18px;line-height:1.45;margin-bottom:12px}
+  .opts{display:grid;gap:10px;margin-bottom:12px}
+  .opt{display:block;width:100%;text-align:left;border:2px solid #2a3a52;background:#0f1624;color:var(--ink);padding:12px;border-radius:10px;cursor:pointer}
+  .opt.correct{border-color:var(--ok);background:#0f2a1a}
+  .opt.wrong{border-color:var(--bad);background:#2a1111}
+  .hud{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .pill{border:1px solid #2a3a52;border-radius:999px;padding:6px 10px;background:#0e1520}
+  .muted{color:#a9b7c7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <header>
+      <div class="title">ExamSimple — ทำทีละข้อ</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn primary" id="start" disabled>เริ่มทำ</button>
+      </div>
+    </header>
+    <div class="body">
+      <div class="hud">
+        <span class="pill" id="title">กำลังโหลดคลังข้อสอบ…</span>
+        <span class="pill" id="hud">0/0 | คะแนน 0</span>
+      </div>
+      <div class="muted" id="note">ไฟล์นี้จะโหลด: <code>computer_systems_exam_59.json</code> จากโฟลเดอร์เดียวกันอัตโนมัติ</div>
+      <div id="play" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+<script>
+function $(s,r){ return (r||document).querySelector(s); }
+function $all(s,r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); }
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(m){ return {"&":"&amp;","<":"&lt;","&gt;":">","\"":"&quot;"}[m]; }); }
+function shuffle(a){ var x=a.slice(); for(var j=x.length-1;j>0;j--){ var k=Math.floor(Math.random()*(j+1)); var t=x[j]; x[j]=x[k]; x[k]=t; } return x; }
+
+var data=null, items=[], i=0, score=0;
+var titleEl=$('#title'), hud=$('#hud'), play=$('#play');
+
+// Auto-load JSON from same folder; add cache-busting query to avoid stale cache after updates
+fetch('digital_business_exam_full.json?v=' + Date.now(), {cache:'no-store'})
+  .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(function(j){ data=j; titleEl.textContent = data.title || 'แบบทดสอบ'; $('#start').disabled=false; })
+  .catch(function(err){
+    titleEl.textContent = 'โหลดอัตโนมัติไม่สำเร็จ'; console.error(err);
+    var msg=document.createElement('div'); msg.className='muted'; msg.textContent='ตรวจสอบว่าไฟล์ digital_business_exam_full.json อยู่โฟลเดอร์เดียวกับ index.html และสะกดชื่อตรงกัน';
+    play.appendChild(msg);
+  });
+
+$('#start').onclick=function(){
+  if(!data){ alert('ยังไม่มีข้อมูลข้อสอบ'); return; }
+  items = shuffle((data.questions||[]).map(function(q){ return { q:q.q, choices: shuffle(q.choices||[]) }; }));
+  i=0; score=0; render();
+};
+
+function render(){
+  play.innerHTML='';
+  if(i>=items.length){ return finish(); }
+  var it=items[i];
+  var box=document.createElement('div');
+  box.innerHTML = '<div class="q">ข้อ '+(i+1)+' / '+items.length+'<br>'+escapeHtml(it.q)+'</div>' +
+                  '<div class="opts"></div>' +
+                  '<div style="display:flex;gap:8px;justify-content:space-between">' +
+                  '<button class="btn" id="prev" '+(i===0?'disabled':'')+'>ก่อนหน้า</button>' +
+                  '<button class="btn primary" id="next" disabled>ถัดไป</button>' +
+                  '</div>';
+  var opts=$('.opts',box);
+  for(var k=0;k<it.choices.length;k++){ (function(idx){ 
+      var c=it.choices[idx]; var b=document.createElement('button');
+      b.type='button'; b.className='opt'; b.textContent=String.fromCharCode(65+idx)+'. '+c.t;
+      b.addEventListener('click', function(){ select(idx); });
+      opts.appendChild(b);
+  })(k); }
+  function select(idx){
+    if(box.dataset.done) return; box.dataset.done='1';
+    var correctIndex=-1; for(var m=0;m<it.choices.length;m++){ if(it.choices[m].correct){ correctIndex=m; break; } }
+    var nodes=$all('.opt',box);
+    for(var n=0;n<nodes.length;n++){ if(n===correctIndex) nodes[n].classList.add('correct'); }
+    if(idx!==correctIndex) nodes[idx].classList.add('wrong'); else score++;
+    $('#next',box).disabled=false;
+    hud.textContent=(Math.min(i+1,items.length))+'/'+items.length+' | คะแนน '+score;
+  }
+  $('#next',box).onclick=function(){ i++; render(); };
+  $('#prev',box).onclick=function(){ if(i>0){ i--; render(); } };
+  play.appendChild(box);
+  hud.textContent=(i+1)+'/'+items.length+' | คะแนน '+score;
+}
+
+function finish(){
+  var pct=Math.round((score/items.length)*100);
+  var done=document.createElement('div');
+  done.innerHTML = '<h3 style="margin:0 0 8px 0">จบแบบทดสอบ</h3>' +
+                   '<div class="pill">ได้ '+score+'/'+items.length+' ข้อ — '+pct+'%</div>' +
+                   '<div style="margin-top:10px"><button class="btn primary" id="again">เริ่มใหม่</button></div>';
+  done.querySelector('#again').onclick=function(){ $('#start').click(); };
+  play.appendChild(done);
+}
+</script>
+</body>
+</html>
